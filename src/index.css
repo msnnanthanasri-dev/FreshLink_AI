@@ -1,0 +1,240 @@
+/* DO NOT CHANGE */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Sora:wght@300;400;500;600;700;800&display=swap");
+@custom-variant dark (&:is(.dark *));
+
+/* DO NOT CHANGE */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* FreshLink palette */
+  --color-forest: var(--forest);
+  --color-forest-deep: var(--forest-deep);
+  --color-leaf: var(--leaf);
+  --color-lime: var(--lime);
+  --color-cream: var(--cream);
+  --color-ivory: var(--ivory);
+  --color-charcoal: var(--charcoal);
+  --color-coral: var(--coral);
+  --color-harvest: var(--harvest);
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* CHANGE VALUES FOR THEME — Eco-Tech Food Network */
+:root {
+  --radius: 0.625rem;
+  --background: #faf7f0; /* warm cream */
+  --foreground: #1f2a20; /* dark charcoal w/ green cast */
+  --card: #ffffff;
+  --card-foreground: #1f2a20;
+  --popover: #ffffff;
+  --popover-foreground: #1f2a20;
+  --primary: #1e4d2b; /* deep forest green */
+  --primary-foreground: #f4f9f0;
+  --secondary: #eef3e2; /* soft leaf tint */
+  --secondary-foreground: #243d2a;
+  --muted: #f0ede3;
+  --muted-foreground: #66715f;
+  --accent: #ff6b4a; /* warm coral */
+  --accent-foreground: #fff7f2;
+  --destructive: #d64545;
+  --border: #e2ddcd;
+  --input: #e2ddcd;
+  --ring: #4a7c59;
+  --chart-1: #1e4d2b;
+  --chart-2: #7fb069;
+  --chart-3: #ff6b4a;
+  --chart-4: #e9b44c;
+  --chart-5: #4a7c59;
+  --sidebar: #12281a; /* deep forest */
+  --sidebar-foreground: #dcead6;
+  --sidebar-primary: #9bc53d;
+  --sidebar-primary-foreground: #12281a;
+  --sidebar-accent: #1c3a26;
+  --sidebar-accent-foreground: #eaf4e2;
+  --sidebar-border: #26422e;
+  --sidebar-ring: #7fb069;
+
+  /* FreshLink custom tokens */
+  --forest: #1e4d2b;
+  --forest-deep: #12281a;
+  --leaf: #4a7c59;
+  --lime: #9bc53d;
+  --cream: #faf7f0;
+  --ivory: #fffdf7;
+  --charcoal: #1f2a20;
+  --coral: #ff6b4a;
+  --harvest: #e9b44c;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-family: var(--font-sans);
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(1100px 500px at 85% -10%, rgba(75, 124, 89, 0.08), transparent 60%),
+      radial-gradient(900px 420px at -10% 10%, rgba(233, 180, 76, 0.07), transparent 55%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+  button:not([disabled]),
+  [role="button"]:not([disabled]) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: rgba(155, 197, 61, 0.35);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  /* Subtle topo/map-inspired texture used on hero + page headers */
+  .topo-texture {
+    background-image:
+      repeating-radial-gradient(circle at 20% 30%, transparent 0, transparent 38px, rgba(30, 77, 43, 0.05) 39px, transparent 40px),
+      repeating-radial-gradient(circle at 80% 70%, transparent 0, transparent 46px, rgba(30, 77, 43, 0.045) 47px, transparent 48px);
+  }
+  .flow-dash {
+    stroke-dasharray: 6 8;
+    animation: flow-dash 1.4s linear infinite;
+  }
+  @keyframes flow-dash {
+    to {
+      stroke-dashoffset: -28;
+    }
+  }
+  .node-glow {
+    animation: node-glow 2.6s ease-in-out infinite;
+  }
+  @keyframes node-glow {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(155, 197, 61, 0.25)); }
+    50% { filter: drop-shadow(0 0 8px rgba(155, 197, 61, 0.55)); }
+  }
+  .particle-move {
+    animation: particle-move 2.8s ease-in-out infinite;
+  }
+  @keyframes particle-move {
+    0% { offset-distance: 0%; opacity: 0; }
+    12% { opacity: 1; }
+    88% { opacity: 1; }
+    100% { offset-distance: 100%; opacity: 0; }
+  }
+  .shimmer-line {
+    background: linear-gradient(90deg, transparent, rgba(155, 197, 61, 0.55), transparent);
+    animation: shimmer-x 2.2s linear infinite;
+  }
+  @keyframes shimmer-x {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .card-hover {
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px -14px rgba(18, 40, 26, 0.35);
+    border-color: rgba(74, 124, 89, 0.45);
+  }
+  .sidebar-link {
+    position: relative;
+    transition: background 0.15s ease, color 0.15s ease, padding-left 0.15s ease;
+  }
+  .sidebar-link:hover {
+    padding-left: calc(var(--pad) + 4px);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Leaflet z-index fixes (below dialogs) */
+.leaflet-container {
+  z-index: 0;
+  font-family: var(--font-sans);
+  border-radius: 0.75rem;
+}
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10 !important;
+}

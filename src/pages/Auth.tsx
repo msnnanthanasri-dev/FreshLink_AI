@@ -1,0 +1,378 @@
+import { Suspense, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import logo from "@/assets/logo.svg";
+import {
+  Store,
+  HeartHandshake,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  KeyRound,
+  Sprout,
+  MailCheck,
+} from "lucide-react";
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+type Mode = "signIn" | "register" | "forgot";
+
+const DEMO_ACCOUNTS = [
+  { role: "Supplier", org: "Grand Palace Hotel", email: "hotel@freshlink.app" },
+  { role: "Supplier", org: "GreenLeaf Supermarket", email: "supplier@freshlink.app" },
+  { role: "Recipient", org: "Community Kitchen", email: "recipient@freshlink.app" },
+  { role: "Recipient", org: "Helping Hands NGO", email: "ngo@freshlink.app" },
+  { role: "Admin", org: "Platform Administration", email: "admin@freshlink.app" },
+];
+
+function resolveRedirectAfterAuth(returnTo: string | null, fallback = "/dashboard") {
+  if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) return returnTo;
+  return fallback;
+}
+
+function AuthInner() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const { signIn } = useAuthActions();
+  const registerProfile = useMutation(api.users.registerProfile);
+
+  const redirect = resolveRedirectAfterAuth(searchParams.get("returnTo"), searchParams.get("mode") === "register" ? "/dashboard" : "/dashboard");
+  const initialMode = (searchParams.get("mode") as Mode) || "signIn";
+  const [mode, setMode] = useState<Mode>(initialMode === "register" ? "register" : initialMode === "forgot" ? "forgot" : "signIn");
+  const [role, setRole] = useState<"supplier" | "recipient">(
+    searchParams.get("role") === "recipient" ? "recipient" : "supplier",
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) navigate(redirect);
+  }, [authLoading, isAuthenticated, navigate, redirect]);
+
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    try {
+      await signIn("password", {
+        flow: "signIn",
+        email: String(fd.get("email")),
+        password: String(fd.get("password")),
+      });
+      // ensure org exists for this user (no-ops after first login)
+      await registerProfile({ name: "", organizationName: "", role: "recipient", phone: "", location: "" }).catch(() => {});
+      navigate(redirect);
+    } catch (err) {
+      setError(err instanceof Error ? err.message.replace("Invalid credentials", "Incorrect email or password") : "Sign in failed. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    const name = String(fd.get("name") || "").trim();
+    const orgName = String(fd.get("orgName") || "").trim();
+    const email = String(fd.get("email") || "").trim();
+    const password = String(fd.get("password") || "");
+    const phone = String(fd.get("phone") || "").trim();
+    const location = String(fd.get("location") || "").trim();
+    const storage = fd.get("storage") === "on";
+    const cold = fd.get("cold") === "on";
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      setIsLoading(false);
+      return;
+    }
+    try {
+      await signIn("password", { flow: "signUp", email, password });
+      await registerProfile({
+        name: name || email.split("@")[0],
+        organizationName: orgName || `${name || email.split("@")[0]}'s organization`,
+        role,
+        phone,
+        location,
+        storageCapability: storage,
+        coldChainCapability: cold,
+      });
+      toast.success("Welcome to FreshLink AI", { description: "Your organization is ready." });
+      navigate(redirect);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Registration failed.";
+      setError(msg.includes("already exists") ? "An account with this email already exists. Try signing in." : msg);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemo = async (email: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signIn("password", { flow: "signIn", email, password: "freshlink123" });
+      await registerProfile({ name: "", organizationName: "", role: "recipient", phone: "", location: "" }).catch(() => {});
+      navigate(redirect);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Demo sign-in failed.");
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
+      {/* Left brand panel */}
+      <div className="topo-texture relative hidden flex-col justify-between bg-forest-deep p-10 text-white lg:flex">
+        <Link to="/" className="flex items-center gap-2.5">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20">
+            <Sprout className="size-5 text-lime" />
+          </span>
+          <span>
+            <span className="block font-display text-lg font-semibold leading-tight">FreshLink AI</span>
+            <span className="block text-[9px] font-semibold uppercase tracking-[0.24em] text-white/50">Surplus Redistribution</span>
+          </span>
+        </Link>
+        <div>
+          <h2 className="font-display text-4xl font-semibold leading-tight">
+            Turn surplus<br />into <span className="text-lime">impact</span>.
+          </h2>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
+            Join a network where surplus food finds the organizations that can use it — matched by quantity,
+            time, distance and capability.
+          </p>
+          <div className="mt-8 space-y-3">
+            {[
+              { icon: Store, text: "Suppliers list surplus with real photos" },
+              { icon: HeartHandshake, text: "Recipients apply for what they can use" },
+              { icon: ArrowRight, text: "AI proposes the split — you approve it" },
+            ].map((r) => (
+              <p key={r.text} className="flex items-center gap-3 text-sm text-white/80">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-white/10">
+                  <r.icon className="size-4 text-lime" />
+                </span>
+                {r.text}
+              </p>
+            ))}
+          </div>
+        </div>
+        <p className="text-xs text-white/40">Photos support listings — they never replace food-safety judgement.</p>
+      </div>
+
+      {/* Right form panel */}
+      <div className="flex items-center justify-center bg-background px-4 py-10 sm:px-8">
+        <div className="w-full max-w-md">
+          <div className="mb-6 flex items-center gap-2 lg:hidden">
+            <img src={logo} alt="FreshLink AI" className="size-9 rounded-lg" />
+            <span className="font-display text-lg font-semibold">FreshLink AI</span>
+          </div>
+
+          {mode === "signIn" && (
+            <Card className="border-border/70">
+              <CardHeader>
+                <CardTitle className="font-display text-2xl">Welcome back</CardTitle>
+                <CardDescription>Sign in to your food network.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-3.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" placeholder="you@organization.org" required autoComplete="email" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <button type="button" onClick={() => setMode("forgot")} className="text-xs font-medium text-leaf hover:underline">
+                        Forgot password?
+                      </button>
+                    </div>
+                    <Input id="password" name="password" type="password" required autoComplete="current-password" />
+                  </div>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <Button type="submit" className="w-full bg-forest hover:bg-forest/90" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <KeyRound className="mr-2 size-4" />}
+                    Sign in
+                  </Button>
+                </form>
+
+                <div className="rounded-lg border bg-secondary/60 p-3">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Demo accounts · password freshlink123</p>
+                  <div className="grid gap-1.5">
+                    {DEMO_ACCOUNTS.map((d) => (
+                      <button
+                        key={d.email}
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => handleDemo(d.email)}
+                        className="flex items-center justify-between rounded-md bg-card px-3 py-2 text-left text-xs hover:border-leaf/40"
+                      >
+                        <span>
+                          <span className="font-semibold">{d.org}</span>
+                          <span className="ml-2 rounded-full bg-leaf/10 px-1.5 py-0.5 text-[10px] font-semibold text-leaf">{d.role}</span>
+                        </span>
+                        <span className="text-muted-foreground">{d.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="text-center text-sm text-muted-foreground">
+                  New to FreshLink?{" "}
+                  <button onClick={() => setMode("register")} className="font-semibold text-forest hover:underline">
+                    Create an organization
+                  </button>
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {mode === "register" && (
+            <Card className="border-border/70">
+              <CardHeader>
+                <CardTitle className="font-display text-2xl">Register your organization</CardTitle>
+                <CardDescription>Choose your role and join the network.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Role">
+                  {[
+                    { key: "supplier" as const, icon: Store, label: "Supplier", sub: "I have surplus food" },
+                    { key: "recipient" as const, icon: HeartHandshake, label: "Recipient", sub: "I need food" },
+                  ].map((r) => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => setRole(r.key)}
+                      aria-pressed={role === r.key}
+                      className={`rounded-xl border p-3.5 text-left transition-colors ${
+                        role === r.key ? "border-forest bg-leaf/10 ring-1 ring-forest/30" : "bg-card hover:border-leaf/40"
+                      }`}
+                    >
+                      <r.icon className={`size-5 ${role === r.key ? "text-forest" : "text-muted-foreground"}`} />
+                      <p className="mt-1.5 text-sm font-semibold">{r.label}</p>
+                      <p className="text-[11.5px] text-muted-foreground">{r.sub}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <form onSubmit={handleRegister} className="space-y-3.5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name">Your name</Label>
+                      <Input id="name" name="name" placeholder="Sofia Marchetti" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="orgName">Organization</Label>
+                      <Input id="orgName" name="orgName" placeholder="Community Kitchen" required />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="reg-email">Email</Label>
+                    <Input id="reg-email" name="email" type="email" placeholder="you@organization.org" required autoComplete="email" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input id="phone" name="phone" type="tel" placeholder="+44 121 555 0000" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="location">Location</Label>
+                      <Input id="location" name="location" placeholder="Birmingham, UK" required />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="reg-password">Password</Label>
+                    <Input id="reg-password" name="password" type="password" placeholder="At least 8 characters" required minLength={8} autoComplete="new-password" />
+                  </div>
+
+                  {role === "recipient" && (
+                    <div className="space-y-2 rounded-lg border bg-secondary/50 p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Capabilities (used by AI matching)</p>
+                      <label className="flex items-center justify-between text-sm">
+                        Dry / ambient storage
+                        <Switch name="storage" defaultChecked />
+                      </label>
+                      <label className="flex items-center justify-between text-sm">
+                        Cold chain (refrigerated transport)
+                        <Switch name="cold" />
+                      </label>
+                    </div>
+                  )}
+
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <Button type="submit" className="w-full bg-forest hover:bg-forest/90" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                    Create account
+                  </Button>
+                </form>
+
+                <p className="text-center text-sm text-muted-foreground">
+                  Already have an account?{" "}
+                  <button onClick={() => setMode("signIn")} className="font-semibold text-forest hover:underline">
+                    Sign in
+                  </button>
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {mode === "forgot" && (
+            <Card className="border-border/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-display text-2xl">
+                  <MailCheck className="size-5 text-leaf" /> Reset your password
+                </CardTitle>
+                <CardDescription>
+                  Enter your email and our support team flow will send reset instructions.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="forgot-email">Email</Label>
+                  <Input id="forgot-email" type="email" placeholder="you@organization.org" />
+                </div>
+                <div className="rounded-lg border bg-secondary/60 p-3 text-sm text-muted-foreground">
+                  Password reset is handled by your platform administrator in this demo deployment. Try a demo
+                  account below to explore the full product.
+                </div>
+                <Button
+                  type="button"
+                  className="w-full bg-forest hover:bg-forest/90"
+                  onClick={() => handleDemo("recipient@freshlink.app")}
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                  Continue with demo account
+                </Button>
+                <button onClick={() => setMode("signIn")} className="flex w-full items-center justify-center gap-1.5 text-sm font-medium text-forest hover:underline">
+                  <ArrowLeft className="size-3.5" /> Back to sign in
+                </button>
+              </CardContent>
+            </Card>
+          )}
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            <Link to="/" className="hover:text-forest hover:underline">← Back to FreshLink AI home</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthInner />
+    </Suspense>
+  );
+}
