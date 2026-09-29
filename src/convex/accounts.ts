@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { fail } from "./lib/util";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 async function requireViewer(ctx: any) {
   const userId = await getAuthUserId(ctx);
@@ -91,5 +93,15 @@ export const isSeeded = query({
   handler: async (ctx) => {
     const org = await ctx.db.query("organizations").first();
     return org !== null;
+  },
+});
+
+/** Idempotently seeds the demo world (called once by the app on first load). */
+export const ensureSeed = mutation({
+  args: {},
+  handler: async (ctx): Promise<{ ok: boolean }> => {
+    await ctx.runMutation(internal.seed.seedInternal);
+    await ctx.runMutation(internal.seedAccounts.seedAccountsInternal);
+    return { ok: true };
   },
 });

@@ -49,9 +49,7 @@ const NAV = [
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { user, org, signOut } = { ...useAuth(), org: undefined } as any;
-  // useAuth returns user only; fetch org name via profile query instead
-  const profile = useQuery(api.users.myProfile);
+  const { signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {

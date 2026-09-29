@@ -14,6 +14,20 @@ const Landing = lazy(() => import("./pages/Landing.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const Surplus = lazy(() => import("./pages/Surplus.tsx").then((m) => ({ default: m.default })));
+const SurplusDetail = lazy(() => import("./pages/Surplus.tsx").then((m) => ({ default: m.SurplusDetail })));
+const CreateSurplus = lazy(() => import("./pages/CreateSurplus.tsx"));
+const Applications = lazy(() => import("./pages/Applications.tsx"));
+const Allocations = lazy(() => import("./pages/Allocations.tsx"));
+const Pickups = lazy(() => import("./pages/Pickups.tsx").then((m) => ({ default: m.default })));
+const PickupDetail = lazy(() => import("./pages/Pickups.tsx").then((m) => ({ default: m.PickupDetail })));
+const GisMap = lazy(() => import("./pages/GisMap.tsx"));
+const Notifications = lazy(() => import("./pages/Notifications.tsx"));
+const Impact = lazy(() => import("./pages/Impact.tsx"));
+const History = lazy(() => import("./pages/History.tsx"));
+const SettingsPage = lazy(() => import("./pages/Misc.tsx").then((m) => ({ default: m.Settings })));
+const HelpPage = lazy(() => import("./pages/Misc.tsx").then((m) => ({ default: m.Help })));
+const AdminPage = lazy(() => import("./pages/Misc.tsx").then((m) => ({ default: m.Admin })));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -120,15 +134,124 @@ createRoot(document.getElementById("root")!).render(
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               <Route path="/" element={<Landing />} />
-              <Route
-                path="/auth"
-                element={<AuthPage />}
-              />
+              <Route path="/auth" element={<AuthPage />} />
               <Route
                 path="/dashboard"
                 element={
                   <RequireAuth>
                     <Dashboard />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/surplus"
+                element={
+                  <RequireAuth>
+                    <Surplus />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/surplus/new"
+                element={
+                  <RequireAuth>
+                    <CreateSurplus />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/surplus/:id"
+                element={
+                  <RequireAuth>
+                    <SurplusDetail />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/applications"
+                element={
+                  <RequireAuth>
+                    <Applications />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/allocations"
+                element={
+                  <RequireAuth>
+                    <Allocations />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/pickups"
+                element={
+                  <RequireAuth>
+                    <Pickups />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/pickups/:id"
+                element={
+                  <RequireAuth>
+                    <PickupDetail />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/map"
+                element={
+                  <RequireAuth>
+                    <GisMap />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <RequireAuth>
+                    <Notifications />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/impact"
+                element={
+                  <RequireAuth>
+                    <Impact />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/history"
+                element={
+                  <RequireAuth>
+                    <History />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <RequireAuth>
+                    <SettingsPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/help"
+                element={
+                  <RequireAuth>
+                    <HelpPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <RequireAuth>
+                    <AdminPage />
                   </RequireAuth>
                 }
               />

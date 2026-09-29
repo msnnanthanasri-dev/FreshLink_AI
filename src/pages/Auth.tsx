@@ -25,6 +25,8 @@ import { useMutation } from "convex/react";
 
 type Mode = "signIn" | "register" | "forgot";
 
+const DEMO_PASSWORD = "freshlink123";
+
 const DEMO_ACCOUNTS = [
   { role: "Supplier", org: "Grand Palace Hotel", email: "hotel@freshlink.app" },
   { role: "Supplier", org: "GreenLeaf Supermarket", email: "supplier@freshlink.app" },
@@ -43,9 +45,9 @@ function AuthInner() {
   const navigate = useNavigate();
   const { isLoading: authLoading, isAuthenticated } = useAuth();
   const { signIn } = useAuthActions();
-  const registerProfile = useMutation(api.users.registerProfile);
+  const registerProfile = useMutation(api.accounts.registerProfile);
 
-  const redirect = resolveRedirectAfterAuth(searchParams.get("returnTo"), searchParams.get("mode") === "register" ? "/dashboard" : "/dashboard");
+  const redirect = resolveRedirectAfterAuth(searchParams.get("returnTo"), "/dashboard");
   const initialMode = (searchParams.get("mode") as Mode) || "signIn";
   const [mode, setMode] = useState<Mode>(initialMode === "register" ? "register" : initialMode === "forgot" ? "forgot" : "signIn");
   const [role, setRole] = useState<"supplier" | "recipient">(
@@ -58,6 +60,26 @@ function AuthInner() {
     if (!authLoading && isAuthenticated) navigate(redirect);
   }, [authLoading, isAuthenticated, navigate, redirect]);
 
+  /** The auth token needs a beat to attach to the Convex client; retry until it lands. */
+  const ensureProfile = async (args: {
+    name: string;
+    organizationName: string;
+    role: "supplier" | "recipient";
+    phone: string;
+    location: string;
+    storageCapability?: boolean;
+    coldChainCapability?: boolean;
+  }) => {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        await registerProfile(args);
+        return;
+      } catch {
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -69,8 +91,7 @@ function AuthInner() {
         email: String(fd.get("email")),
         password: String(fd.get("password")),
       });
-      // ensure org exists for this user (no-ops after first login)
-      await registerProfile({ name: "", organizationName: "", role: "recipient", phone: "", location: "" }).catch(() => {});
+      await ensureProfile({ name: "", organizationName: "", role: "recipient", phone: "", location: "" });
       navigate(redirect);
     } catch (err) {
       setError(err instanceof Error ? err.message.replace("Invalid credentials", "Incorrect email or password") : "Sign in failed. Please try again.");
@@ -99,7 +120,7 @@ function AuthInner() {
     }
     try {
       await signIn("password", { flow: "signUp", email, password });
-      await registerProfile({
+      await ensureProfile({
         name: name || email.split("@")[0],
         organizationName: orgName || `${name || email.split("@")[0]}'s organization`,
         role,
@@ -121,8 +142,8 @@ function AuthInner() {
     setIsLoading(true);
     setError(null);
     try {
-      await signIn("password", { flow: "signIn", email, password: "freshlink123" });
-      await registerProfile({ name: "", organizationName: "", role: "recipient", phone: "", location: "" }).catch(() => {});
+      await signIn("password", { flow: "signIn", email, password: DEMO_PASSWORD });
+      await ensureProfile({ name: "", organizationName: "", role: "recipient", phone: "", location: "" });
       navigate(redirect);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Demo sign-in failed.");

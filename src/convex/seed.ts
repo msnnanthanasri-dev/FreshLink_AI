@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { Scrypt } from "lucia";
 import { analyzeCompatibility, distanceKm } from "./lib/matching";
 import { toDateKey } from "./lib/util";
@@ -386,7 +387,16 @@ const LISTINGS: ListingSeed[] = [
   },
 ];
 
-export const seed = internalMutation({
+/** Public wrapper so the app can trigger idempotent seeding after load. */
+export const run = mutation({
+  args: {},
+  handler: async (ctx): Promise<{ ok: boolean }> => {
+    await ctx.runMutation(internal.seed.seedInternal);
+    return { ok: true };
+  },
+});
+
+export const seedInternal = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Idempotency: don't seed twice.
