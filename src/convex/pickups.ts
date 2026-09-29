@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { notify, notifyOrg, fail, friendlyDate, friendlyTime } from "./lib/util";
+import { notify, notifyOrg, fail, friendlyDate, friendlyTime, isFssaiVerified } from "./lib/util";
 import type { Doc, Id } from "./_generated/dataModel";
 
 async function requireViewer(ctx: any) {
@@ -34,8 +34,8 @@ export const list = query({
       out.push({
         ...p,
         listing: { _id: listing._id, title: listing.title, category: listing.category, photoUrl: listing.photoUrl, storageCondition: listing.storageCondition, coldChainRequired: listing.coldChainRequired, handlingInstructions: listing.handlingInstructions },
-        supplierOrg: { _id: supplierOrg._id, name: supplierOrg.name, address: supplierOrg.address, lat: supplierOrg.lat, lng: supplierOrg.lng, contactPhone: supplierOrg.contactPhone },
-        recipientOrg: { _id: recipientOrg._id, name: recipientOrg.name, address: recipientOrg.address, lat: recipientOrg.lat, lng: recipientOrg.lng, contactPhone: recipientOrg.contactPhone },
+        supplierOrg: { _id: supplierOrg._id, name: supplierOrg.name, address: supplierOrg.address, lat: supplierOrg.lat, lng: supplierOrg.lng, contactPhone: supplierOrg.contactPhone, fssaiVerified: isFssaiVerified(supplierOrg), fssaiStatus: supplierOrg.fssaiVerificationStatus ?? null },
+        recipientOrg: { _id: recipientOrg._id, name: recipientOrg.name, address: recipientOrg.address, lat: recipientOrg.lat, lng: recipientOrg.lng, contactPhone: recipientOrg.contactPhone, fssaiVerified: isFssaiVerified(recipientOrg), fssaiStatus: recipientOrg.fssaiVerificationStatus ?? null },
         viewerRole: org?._id === p.supplierOrgId ? "supplier" : "recipient",
       });
     }

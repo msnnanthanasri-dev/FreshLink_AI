@@ -25,6 +25,20 @@ export const orgTypeValidator = v.union(
   v.literal("recipient"),
 );
 
+// FSSAI (Food Safety and Standards) license / registration types.
+export const fssaiTypeValidator = v.union(
+  v.literal("LICENSE"),
+  v.literal("REGISTRATION"),
+);
+
+// FSSAI verification lifecycle (FreshLink compliance review, not government verification).
+export const fssaiStatusValidator = v.union(
+  v.literal("PENDING"),
+  v.literal("VERIFIED"),
+  v.literal("REQUIRES_REVIEW"),
+  v.literal("REJECTED"),
+);
+
 export const listingCategoryValidator = v.union(
   v.literal("fruits"),
   v.literal("vegetables"),
@@ -127,10 +141,21 @@ const schema = defineSchema(
       storageCapability: v.optional(v.boolean()),
       coldChainCapability: v.optional(v.boolean()),
       pickupCapability: v.optional(v.string()), // e.g. "Own van", "Walk-in pickup"
+      // FSSAI License / Registration compliance (Food Safety and Standards)
+      fssaiNumber: v.optional(v.string()), // 14 digits
+      fssaiType: v.optional(fssaiTypeValidator),
+      fssaiCertificateUrl: v.optional(v.string()), // Convex storage URL — unguessable, private
+      fssaiCertificateName: v.optional(v.string()),
+      fssaiCertificateUploadedAt: v.optional(v.number()),
+      fssaiVerificationStatus: v.optional(fssaiStatusValidator),
+      fssaiVerifiedAt: v.optional(v.number()),
+      fssaiSubmittedAt: v.optional(v.number()),
+      fssaiVerificationReason: v.optional(v.string()),
       createdAt: v.number(),
     })
       .index("by_type", ["type"])
-      .index("by_name", ["name"]),
+      .index("by_name", ["name"])
+      .index("by_fssai", ["fssaiNumber"]),
 
     foodListings: defineTable({
       supplierOrgId: v.id("organizations"),

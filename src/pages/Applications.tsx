@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "@/convex/_generated/api";
 import { AppLayout, PageLoading } from "@/components/AppLayout";
-import { StatusBadge, CompatibilityScore, fmtQty, fmtDate, time24to12 } from "@/components/shared";
+import { StatusBadge, CompatibilityScore, fmtQty, fmtDate, time24to12, FssaiBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -54,6 +54,7 @@ export default function Applications() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold">{isSupplier ? a.recipientOrg.name : a.listing.title}</p>
+                      {isSupplier && <FssaiBadge verified={a.recipientOrg.fssaiVerified} showMasked={a.recipientOrg.fssaiMasked} />}
                       <StatusBadge status={a.status} />
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">

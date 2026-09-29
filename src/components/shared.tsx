@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Card, CardContent } from "@/components/ui/card";
+import { BadgeCheck, Clock, AlertTriangle, XCircle, Info, ShieldCheck } from "lucide-react";
 
 /** Animated counter that eases to its target when scrolled into view. */
 export function Counter({
@@ -170,4 +174,155 @@ export function time24to12(t: string): string {
   const suffix = h >= 12 ? "PM" : "AM";
   const hr = h % 12 === 0 ? 12 : h % 12;
   return `${hr}:${String(m || 0).padStart(2, "0")} ${suffix}`;
+}
+
+/* ---------------- FSSAI compliance UI ---------------- */
+
+/** Masked FSSAI number for public display: "••••••••••4821". */
+export function maskFssai(num?: string | null): string {
+  if (!num || num.length < 4) return "—";
+  return "••••••••••" + num.slice(-4);
+}
+
+export type FssaiStatus = "PENDING" | "VERIFIED" | "REQUIRES_REVIEW" | "REJECTED" | null | undefined;
+
+/**
+ * Badge shown next to organizations across the platform.
+ * Only renders "✓ FSSAI Verified" when the status is genuinely VERIFIED
+ * (by FreshLink admin review — never a government claim).
+ */
+export function FssaiBadge({
+  verified,
+  status,
+  className = "",
+  showMasked,
+}: {
+  verified?: boolean;
+  status?: FssaiStatus;
+  className?: string;
+  showMasked?: string;
+}) {
+  if (verified) {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full border border-forest/30 bg-forest/10 px-2 py-0.5 text-[11px] font-semibold text-forest whitespace-nowrap ${className}`}
+        title="FreshLink Compliance Verified — reviewed by the FreshLink team (not a government verification)"
+      >
+        <BadgeCheck className="size-3" /> FSSAI Verified
+      </span>
+    );
+  }
+  if (showMasked) {
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground whitespace-nowrap ${className}`}>
+        FSSAI {showMasked}
+      </span>
+    );
+  }
+  return null;
+}
+
+/** Full status pill for compliance views (Settings, Admin, dashboards). */
+export function FssaiStatusPill({ status, className = "" }: { status: FssaiStatus; className?: string }) {
+  const styles: Record<string, string> = {
+    VERIFIED: "bg-forest/10 text-forest border-forest/30",
+    PENDING: "bg-harvest/15 text-[#8a6414] border-harvest/40",
+    REQUIRES_REVIEW: "bg-coral/10 text-coral border-coral/30",
+    REJECTED: "bg-destructive/10 text-destructive border-destructive/30",
+  };
+  const labels: Record<string, { icon: typeof Clock; text: string }> = {
+    VERIFIED: { icon: BadgeCheck, text: "FreshLink Compliance Verified" },
+    PENDING: { icon: Clock, text: "FSSAI Verification Pending" },
+    REQUIRES_REVIEW: { icon: AlertTriangle, text: "FSSAI Review Required" },
+    REJECTED: { icon: XCircle, text: "FSSAI Verification Required" },
+  };
+  if (!status) {
+    return (
+      <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-[11.5px] font-semibold text-muted-foreground ${className}`}>
+        <Info className="size-3.5" /> Not submitted
+      </span>
+    );
+  }
+  const s = styles[status] ?? styles.PENDING;
+  const l = labels[status] ?? labels.PENDING;
+  const Icon = l.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold whitespace-nowrap ${s} ${className}`}>
+      <Icon className="size-3.5" /> {l.text}
+    </span>
+  );
+}
+
+/** Compact multi-factor checklist used in the dashboard compliance widget. */
+export function FssaiChecklist({
+  submitted,
+  certificate,
+  verified,
+}: {
+  submitted: boolean;
+  certificate: boolean;
+  verified: boolean;
+}) {
+  const rows = [
+    { ok: submitted, label: "FSSAI information submitted" },
+    { ok: certificate, label: "Certificate uploaded" },
+    { ok: verified, label: "FreshLink verification completed" },
+  ];
+  return (
+    <ul className="space-y-1.5">
+      {rows.map((r) => (
+        <li key={r.label} className="flex items-center gap-2 text-sm">
+          {r.ok ? (
+            <BadgeCheck className="size-4 shrink-0 text-forest" />
+          ) : (
+            <Clock className="size-4 shrink-0 text-harvest" />
+          )}
+          <span className={r.ok ? "text-foreground" : "text-muted-foreground"}>{r.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Dashboard "Compliance status" widget for supplier & recipient dashboards.
+ * Reads the viewer's own org (from myProfile) so both roles get the same card.
+ */
+export function ComplianceWidget() {
+  const profile = useQuery(api.users.myProfile);
+  if (profile === undefined || profile === null) return null;
+  const org = (profile as any).org;
+  if (!org || (profile as any).user?.role === "admin") return null;
+  const status = org.fssaiVerificationStatus as FssaiStatus;
+  const submitted = Boolean(org.fssaiNumber);
+  const certificate = Boolean(org.fssaiCertificateUrl);
+  const verified = status === "VERIFIED";
+  return (
+    <Card className="border-forest/25">
+      <CardContent className="p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 font-display text-base font-semibold">
+            <ShieldCheck className="size-4.5 text-forest" /> Compliance status
+          </p>
+          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Demo data</span>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <FssaiChecklist submitted={submitted} certificate={certificate} verified={verified} />
+          <div className="text-right">
+            <FssaiStatusPill status={status} />
+            {!verified && (
+              <a href="/settings" className="mt-1.5 block text-xs font-semibold text-forest hover:underline">
+                Complete your compliance profile →
+              </a>
+            )}
+          </div>
+        </div>
+        {!submitted && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Complete your compliance profile to continue with applicable food activities.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { safetyCompleteness, computeUrgency, notify, notifyOrg, fail } from "./lib/util";
+import { safetyCompleteness, computeUrgency, notify, notifyOrg, fail, isFssaiVerified, maskFssai } from "./lib/util";
 import { distanceKm } from "./lib/matching";
 import type { Id } from "./_generated/dataModel";
 
@@ -72,6 +72,9 @@ export const get = query({
             lat: supplier.lat,
             lng: supplier.lng,
             contactPhone: supplier.contactPhone,
+            fssaiVerified: isFssaiVerified(supplier),
+            fssaiStatus: supplier.fssaiVerificationStatus ?? null,
+            fssaiMasked: maskFssai(supplier.fssaiNumber),
           }
         : null,
       allocatedQty,

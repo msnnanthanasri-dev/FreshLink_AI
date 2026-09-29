@@ -201,6 +201,11 @@ export const history = query({
       completedAt: t.completedAt,
       direction: t.direction,
       counterparty: orgName(t.counterpartyOrgId),
+      // Trust & History compliance badges (status only — never full numbers)
+      supplierFssaiVerified: orgs.find((o) => o._id === t.supplierOrgId)?.fssaiVerificationStatus === "VERIFIED",
+      recipientFssaiVerified: orgs.find((o) => o._id === t.recipientOrgId)?.fssaiVerificationStatus === "VERIFIED",
+      supplierName: orgName(t.supplierOrgId),
+      recipientName: orgName(t.recipientOrgId),
     }));
 
     const cancelled = await ctx.db.query("pickupSchedules").withIndex("by_status", (q) => q.eq("status", "cancelled")).collect();
@@ -299,8 +304,8 @@ export const mapData = query({
         status: p.status,
         quantity: p.quantity,
         unit: p.unit,
-        supplier: { lat: orgs.find((o) => o._id === p.supplierOrgId)?.lat ?? 0, lng: orgs.find((o) => o._id === p.supplierOrgId)?.lng ?? 0, name: orgs.find((o) => o._id === p.supplierOrgId)?.name ?? "" },
-        recipient: { lat: orgs.find((o) => o._id === p.recipientOrgId)?.lat ?? 0, lng: orgs.find((o) => o._id === p.recipientOrgId)?.lng ?? 0, name: orgs.find((o) => o._id === p.recipientOrgId)?.name ?? "" },
+        supplier: { lat: orgs.find((o) => o._id === p.supplierOrgId)?.lat ?? 0, lng: orgs.find((o) => o._id === p.supplierOrgId)?.lng ?? 0, name: orgs.find((o) => o._id === p.supplierOrgId)?.name ?? "", fssaiVerified: orgs.find((o) => o._id === p.supplierOrgId)?.fssaiVerificationStatus === "VERIFIED" },
+        recipient: { lat: orgs.find((o) => o._id === p.recipientOrgId)?.lat ?? 0, lng: orgs.find((o) => o._id === p.recipientOrgId)?.lng ?? 0, name: orgs.find((o) => o._id === p.recipientOrgId)?.name ?? "", fssaiVerified: orgs.find((o) => o._id === p.recipientOrgId)?.fssaiVerificationStatus === "VERIFIED" },
       })),
     };
   },

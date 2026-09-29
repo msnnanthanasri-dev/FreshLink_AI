@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { api } from "@/convex/_generated/api";
 import { AppLayout, PageLoading } from "@/components/AppLayout";
 import { FlowChain } from "@/components/food-flow";
-import { StatusBadge, fmtQty, dateKeyToLabel, time24to12, fmtDateTime } from "@/components/shared";
+import { StatusBadge, fmtQty, dateKeyToLabel, time24to12, fmtDateTime, FssaiBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -317,7 +317,9 @@ export function PickupDetail() {
             <CardContent className="space-y-4 p-5">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pickup from</p>
-                <p className="mt-0.5 font-semibold">{p.supplierOrg.name}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 font-semibold">
+                  {p.supplierOrg.name} <FssaiBadge verified={p.supplierOrg.fssaiVerified} />
+                </p>
                 <p className="text-xs text-muted-foreground">{p.pickupLocation}</p>
                 {p.supplierContact && (
                   <p className="mt-1 flex items-center gap-1.5 text-sm"><Phone className="size-3.5 text-leaf" /> {p.supplierContact}</p>
@@ -325,7 +327,9 @@ export function PickupDetail() {
               </div>
               <div className="border-t pt-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Collecting organization</p>
-                <p className="mt-0.5 font-semibold">{p.recipientOrg.name}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 font-semibold">
+                  {p.recipientOrg.name} <FssaiBadge verified={p.recipientOrg.fssaiVerified} />
+                </p>
                 {p.recipientContact && (
                   <p className="mt-1 flex items-center gap-1.5 text-sm"><Phone className="size-3.5 text-leaf" /> {p.recipientContact}</p>
                 )}
@@ -398,14 +402,28 @@ export function PickupDetail() {
 
           {p.status === "completed" && (
             <Card className="border-forest/40 bg-leaf/10">
-              <CardContent className="flex items-center gap-3 p-5">
-                <span className="flex size-11 items-center justify-center rounded-full bg-forest text-white">
-                  <Check className="size-6" />
-                </span>
-                <div>
-                  <p className="font-display text-lg font-semibold text-forest">Redistribution Complete</p>
-                  <p className="text-sm text-charcoal/75">
-                    {fmtQty(p.quantity, p.unit)} successfully redirected. +{p.quantity} kg redistributed · +1 completed pickup.
+              <CardContent className="space-y-3 p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-11 items-center justify-center rounded-full bg-forest text-white">
+                    <Check className="size-6" />
+                  </span>
+                  <div>
+                    <p className="font-display text-lg font-semibold text-forest">Redistribution Complete</p>
+                    <p className="text-sm text-charcoal/75">
+                      {fmtQty(p.quantity, p.unit)} successfully redirected. +{p.quantity} kg redistributed · +1 completed pickup.
+                    </p>
+                  </div>
+                </div>
+                {/* Proof of handover: compliance status of both organizations (no full numbers) */}
+                <div className="rounded-lg border bg-card p-3 text-xs">
+                  <p className="mb-1.5 font-bold uppercase tracking-wide text-muted-foreground">Proof of handover · compliance</p>
+                  <p className="flex flex-wrap items-center gap-2">
+                    Supplier: <span className="font-semibold">{p.supplierOrg.name}</span>
+                    <FssaiBadge verified={p.supplierOrg.fssaiVerified} />
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-2">
+                    Recipient: <span className="font-semibold">{p.recipientOrg.name}</span>
+                    <FssaiBadge verified={p.recipientOrg.fssaiVerified} />
                   </p>
                 </div>
               </CardContent>

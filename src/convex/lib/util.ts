@@ -127,3 +127,48 @@ export interface Err {
 export function fail(message: string): never {
   throw new ConvexError(message);
 }
+
+/* ---------------- FSSAI compliance helpers ---------------- */
+
+/**
+ * Validate an FSSAI License / Registration number.
+ * Rules: digits only, exactly 14, first digit 1 (License) or 2 (Registration).
+ * Returns { ok, type } or { ok: false, error }.
+ */
+export function validateFssai(
+  raw: string,
+): { ok: true; type: "LICENSE" | "REGISTRATION" } | { ok: false; error: string } {
+  const value = (raw ?? "").replace(/[\s\-]/g, "");
+  if (!/^\d+$/.test(value)) {
+    return { ok: false, error: "Enter a valid 14-digit FSSAI License / Registration Number." };
+  }
+  if (value.length !== 14) {
+    return { ok: false, error: "Enter a valid 14-digit FSSAI License / Registration Number." };
+  }
+  if (value[0] === "1") return { ok: true, type: "LICENSE" };
+  if (value[0] === "2") return { ok: true, type: "REGISTRATION" };
+  return { ok: false, error: "Enter a valid 14-digit FSSAI License / Registration Number." };
+}
+
+/** Normalize an FSSAI number (strip spaces/dashes). */
+export function normalizeFssai(raw: string): string {
+  return (raw ?? "").replace(/[^\d]/g, "");
+}
+
+/** Masked form: "••••••••••4821" — shows only the last 4 digits. */
+export function maskFssai(num?: string): string {
+  if (!num || num.length < 4) return "—";
+  return "••••••••••" + num.slice(-4);
+}
+
+/** Short type label for display. */
+export function fssaiTypeLabel(t?: string): string {
+  if (t === "LICENSE") return "License";
+  if (t === "REGISTRATION") return "Registration";
+  return "—";
+}
+
+/** True only when the org's FreshLink FSSAI verification status is VERIFIED. */
+export function isFssaiVerified(org: { fssaiVerificationStatus?: string } | null | undefined): boolean {
+  return org?.fssaiVerificationStatus === "VERIFIED";
+}

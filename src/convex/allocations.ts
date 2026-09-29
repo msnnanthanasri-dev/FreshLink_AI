@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { analyzeCompatibility, proposeAllocation } from "./lib/matching";
-import { notify, notifyOrg, fail, toDateKey, friendlyDate, friendlyTime } from "./lib/util";
+import { notify, notifyOrg, fail, toDateKey, friendlyDate, friendlyTime, isFssaiVerified, maskFssai } from "./lib/util";
 import type { Doc, Id } from "./_generated/dataModel";
 
 async function requireViewer(ctx: any) {
@@ -46,8 +46,8 @@ export const list = query({
           photoUrl: listing.photoUrl,
           quantityOriginal: listing.quantityOriginal,
         },
-        supplierOrg: { _id: supplierOrg._id, name: supplierOrg.name, address: supplierOrg.address, lat: supplierOrg.lat, lng: supplierOrg.lng },
-        recipientOrg: { _id: recipientOrg._id, name: recipientOrg.name, address: recipientOrg.address, lat: recipientOrg.lat, lng: recipientOrg.lng },
+        supplierOrg: { _id: supplierOrg._id, name: supplierOrg.name, address: supplierOrg.address, lat: supplierOrg.lat, lng: supplierOrg.lng, fssaiVerified: isFssaiVerified(supplierOrg), fssaiMasked: maskFssai(supplierOrg.fssaiNumber) },
+        recipientOrg: { _id: recipientOrg._id, name: recipientOrg.name, address: recipientOrg.address, lat: recipientOrg.lat, lng: recipientOrg.lng, fssaiVerified: isFssaiVerified(recipientOrg), fssaiMasked: maskFssai(recipientOrg.fssaiNumber) },
         pickup: pickup ? { _id: pickup._id, status: pickup.status, scheduledDate: pickup.scheduledDate, scheduledTime: pickup.scheduledTime } : null,
       });
     }

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { analyzeCompatibility, distanceKm } from "./lib/matching";
-import { notify, notifyOrg, fail, fromDateKeyTime } from "./lib/util";
+import { notify, notifyOrg, fail, fromDateKeyTime, isFssaiVerified, maskFssai, fssaiTypeLabel } from "./lib/util";
 import type { Doc, Id } from "./_generated/dataModel";
 
 async function requireViewer(ctx: any) {
@@ -77,6 +77,10 @@ export const list = query({
           lng: recipientOrg.lng,
           storageCapability: recipientOrg.storageCapability,
           coldChainCapability: recipientOrg.coldChainCapability,
+          fssaiVerified: isFssaiVerified(recipientOrg),
+          fssaiStatus: recipientOrg.fssaiVerificationStatus ?? null,
+          fssaiTypeLabel: fssaiTypeLabel(recipientOrg.fssaiType),
+          fssaiMasked: maskFssai(recipientOrg.fssaiNumber),
         },
       });
     }
@@ -175,6 +179,8 @@ export const submit = mutation({
         lng: org.lng,
         storageCapability: org.storageCapability ?? false,
         coldChainCapability: org.coldChainCapability ?? false,
+        fssaiVerified: isFssaiVerified(org),
+        fssaiApplicable: true,
       },
     );
 
@@ -312,6 +318,8 @@ export const previewAnalysis = query({
         lng: org.lng,
         storageCapability: org.storageCapability ?? false,
         coldChainCapability: org.coldChainCapability ?? false,
+        fssaiVerified: isFssaiVerified(org),
+        fssaiApplicable: true,
       },
     );
     return { analysis, distanceKm: distanceKm(listing, org) };

@@ -155,9 +155,9 @@ export default function GisMap() {
               pickups.map((p) => (
                 <Marker key={p._id} position={[p.supplier.lat, p.supplier.lng]} icon={pickupIcon}>
                   <Popup>
-                    <strong>🟠 Scheduled pickup</strong>
+                    <strong>🟠 In transit / scheduled</strong>
                     <br />
-                    {p.supplier.name} → {p.recipient.name}
+                    {p.supplier.name} {p.supplier.fssaiVerified ? "✓" : ""} → {p.recipient.name} {p.recipient.fssaiVerified ? "✓" : ""}
                     <br />
                     {p.quantity} {p.unit} · {dateKeyToLabel(p.scheduledDate)} {time24to12(p.scheduledTime)}
                     <br />

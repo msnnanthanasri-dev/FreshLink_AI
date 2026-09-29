@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "@/convex/_generated/api";
 import { AppLayout, PageLoading } from "@/components/AppLayout";
-import { StatusBadge, UrgencyBadge, fmtQty, timeLeft, CompatibilityScore, fmtDate, fmtDateTime } from "@/components/shared";
+import { StatusBadge, UrgencyBadge, fmtQty, timeLeft, CompatibilityScore, fmtDate, fmtDateTime, FssaiBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -164,6 +164,9 @@ export default function Surplus() {
                   {l.safetyStatus === "complete" && (
                     <p className="flex items-center gap-1.5 text-leaf"><ShieldCheck className="size-3.5" /> Safety info complete</p>
                   )}
+                </div>
+                <div className="mt-2 border-t pt-2">
+                  <FssaiBadge verified={l.supplier?.fssaiVerified} />
                 </div>
               </div>
             </Link>
@@ -329,6 +332,9 @@ export function SurplusDetail() {
                 {listing.distanceKm !== null && (
                   <span className="text-muted-foreground">· {Math.round(listing.distanceKm * 10) / 10} km away</span>
                 )}
+              </div>
+              <div className="flex items-center gap-2">
+                <FssaiBadge verified={listing.supplier?.fssaiVerified} showMasked={listing.supplier?.fssaiMasked} />
               </div>
               <p className="text-xs text-muted-foreground">{listing.supplier?.address}</p>
               <div className="border-t pt-3">

@@ -17,6 +17,10 @@ export interface MatchOrg {
   storageCapability: boolean;
   coldChainCapability: boolean;
   pickupCapability?: string;
+  /** FreshLink compliance: FSSAI verification is one signal among many — never auto-eligibility. */
+  fssaiVerified?: boolean;
+  /** True when FSSAI information applies to this org (submitted or not). */
+  fssaiApplicable?: boolean;
 }
 
 export interface MatchListing {
@@ -283,6 +287,25 @@ function readinessScore(app: MatchApplication): { points: number; max: number; n
 }
 
 /**
+ * Compliance score (0-5) — FSSAI verification is ONE transparent compliance signal
+ * among many. It is NOT automatic eligibility and never decides a match alone.
+ */
+function complianceScore(org: MatchOrg): { points: number; max: number; notes: string[] } {
+  const max = 5;
+  const notes: string[] = [];
+  if (org.fssaiVerified) {
+    notes.push("FreshLink compliance verified");
+    return { points: max, max, notes };
+  }
+  if (org.fssaiApplicable === false) {
+    notes.push("No FSSAI requirement applies to this organization type");
+    return { points: 3, max, notes };
+  }
+  notes.push("FSSAI compliance information submitted — FreshLink verification pending");
+  return { points: 2, max, notes };
+}
+
+/**
  * Full deterministic compatibility analysis.
  */
 export function analyzeCompatibility(
@@ -297,6 +320,7 @@ export function analyzeCompatibility(
   const dist = distanceScore(listing, org);
   const storage = storageScore(listing, app);
   const readiness = readinessScore(app);
+  const compliance = complianceScore(org);
 
   const breakdown: ScoreBreakdownLine[] = [
     { label: "Food compatibility", points: food.points, max: food.max },
@@ -305,6 +329,7 @@ export function analyzeCompatibility(
     { label: "Distance efficiency", points: dist.points, max: dist.max },
     { label: "Storage compatibility", points: storage.points, max: storage.max },
     { label: "Demand & readiness", points: readiness.points, max: readiness.max },
+    { label: "Compliance information", points: compliance.points, max: compliance.max },
   ];
 
   const total = breakdown.reduce((s, l) => s + l.points, 0);
@@ -318,6 +343,7 @@ export function analyzeCompatibility(
     ...dist.notes,
     ...storage.notes,
     ...readiness.notes,
+    ...compliance.notes,
   ];
   const warnings: string[] = [];
   if (time.points < 8) warnings.push("Usable time is nearly exhausted — coordinate pickup immediately");

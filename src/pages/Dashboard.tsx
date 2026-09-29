@@ -13,6 +13,7 @@ import {
   timeLeft,
   time24to12,
   dateKeyToLabel,
+  ComplianceWidget,
 } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -155,6 +156,7 @@ function SupplierDashboard({ data }: { data: Extract<DashData, { role: "supplier
 
   return (
     <>
+      <ComplianceWidget />
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
@@ -322,6 +324,7 @@ function RecipientDashboard({ data }: { data: Extract<DashData, { role: "recipie
   const navigate = useNavigate();
   return (
     <>
+      <ComplianceWidget />
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-display text-lg font-semibold">

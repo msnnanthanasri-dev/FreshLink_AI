@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { Link, useNavigate } from "react-router";
 import { api } from "@/convex/_generated/api";
 import { AppLayout, PageLoading } from "@/components/AppLayout";
-import { StatusBadge, fmtQty, fmtDate, time24to12, dateKeyToLabel } from "@/components/shared";
+import { StatusBadge, fmtQty, fmtDate, time24to12, dateKeyToLabel, FssaiBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -94,6 +94,7 @@ export default function Allocations() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{a.recipientOrg.name}</p>
+                          {isSupplierSide(a) && <FssaiBadge verified={a.recipientOrg.fssaiVerified} showMasked={a.recipientOrg.fssaiMasked} />}
                           <StatusBadge status={a.status} />
                           {a.proposedBy === "ai" && (
                             <span className="flex items-center gap-1 rounded-full bg-leaf/10 px-2 py-0.5 text-[10px] font-bold text-leaf">

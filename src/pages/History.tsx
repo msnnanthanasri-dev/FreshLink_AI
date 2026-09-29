@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { Link } from "react-router";
 import { api } from "@/convex/_generated/api";
 import { AppLayout, PageLoading } from "@/components/AppLayout";
-import { fmtQty, fmtDateTime } from "@/components/shared";
+import { fmtQty, fmtDateTime, FssaiBadge } from "@/components/shared";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, History as HistoryIcon, XCircle, Users, Star, ArrowDownLeft, ArrowUpRight } from "lucide-react";
@@ -86,6 +86,12 @@ export default function History() {
                             : `Recipient: ${t.counterparty}`}
                         · {fmtDateTime(t.completedAt)}
                       </p>
+                      {/* Trust & History: compliance status of both parties (badge only) */}
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <FssaiBadge verified={(t as any).supplierFssaiVerified} />
+                        <span className="text-[10px] text-muted-foreground">→</span>
+                        <FssaiBadge verified={(t as any).recipientFssaiVerified} />
+                      </div>
                     </div>
                     <Badge className="border-forest/30 bg-forest/10 text-forest">Completed</Badge>
                   </CardContent>

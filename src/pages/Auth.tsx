@@ -19,9 +19,15 @@ import {
   KeyRound,
   Sprout,
   MailCheck,
+  ShieldCheck,
+  FileUp,
+  BadgeCheck,
+  Clock,
+  FileCheck2,
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useMutation } from "convex/react";
+import { FssaiStatusPill } from "@/components/shared";
 
 type Mode = "signIn" | "register" | "forgot";
 
@@ -35,9 +41,48 @@ const DEMO_ACCOUNTS = [
   { role: "Admin", org: "Platform Administration", email: "admin@freshlink.app" },
 ];
 
+/** Organization type options per role (drives FSSAI-applicability messaging). */
+const SUPPLIER_TYPES = [
+  "Supermarket",
+  "Hotel",
+  "Restaurant",
+  "Bakery",
+  "Food Distributor",
+  "Food Business",
+  "Catering Business",
+  "Farm/Food Supplier",
+];
+const RECIPIENT_TYPES = [
+  "NGO / Community Food Organization",
+  "Community Kitchen",
+  "Juice Shop",
+  "Food Processor",
+  "Restaurant",
+  "Charity / Shelter",
+  "Other Community Organization",
+];
+/** Recipient types conducting applicable food-business activities → FSSAI shown prominently. */
+const FSSAI_APPLICABLE_RECIPIENTS = [
+  "NGO / Community Food Organization",
+  "Community Kitchen",
+  "Juice Shop",
+  "Food Processor",
+  "Restaurant",
+];
+
 function resolveRedirectAfterAuth(returnTo: string | null, fallback = "/dashboard") {
   if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) return returnTo;
   return fallback;
+}
+
+/** Client-side FSSAI validation — mirrors the server rules exactly. */
+function validateFssaiClient(raw: string): { ok: true; type: "LICENSE" | "REGISTRATION" } | { ok: false; error: string | null } {
+  const v = raw.replace(/[\s-]/g, "");
+  if (!v) return { ok: false, error: null };
+  if (!/^\d+$/.test(v) || v.length !== 14) return { ok: false, error: "Enter a valid 14-digit FSSAI License / Registration Number." };
+  if (v[0] === "1") return { ok: true, type: "LICENSE" };
+  if (v[0] === "2") return { ok: true, type: "REGISTRATION" };
+  return { ok: false, error: "Enter a valid 14-digit FSSAI License / Registration Number." };
 }
 
 function AuthInner() {
@@ -56,9 +101,22 @@ function AuthInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // FSSAI registration state
+  const [fssaiNumber, setFssaiNumber] = useState("");
+  const [fssaiCert, setFssaiCert] = useState<{ url: string; name: string } | null>(null);
+  const [certUploading, setCertUploading] = useState(false);
+  const [orgCategory, setOrgCategory] = useState<string>("");
+
   useEffect(() => {
     if (!authLoading && isAuthenticated) navigate(redirect);
   }, [authLoading, isAuthenticated, navigate, redirect]);
+
+  const typeOptions = role === "supplier" ? SUPPLIER_TYPES : RECIPIENT_TYPES;
+  const fssaiCheck = validateFssaiClient(fssaiNumber);
+  // FSSAI section is always shown for suppliers (required); for recipients it is
+  // shown prominently for food-handling org types, and available to others too.
+  const fssaiApplicable =
+    role === "supplier" || FSSAI_APPLICABLE_RECIPIENTS.includes(orgCategory) || orgCategory === "";
 
   /** The auth token needs a beat to attach to the Convex client; retry until it lands. */
   const ensureProfile = async (args: {
@@ -67,8 +125,12 @@ function AuthInner() {
     role: "supplier" | "recipient";
     phone: string;
     location: string;
+    category?: string;
     storageCapability?: boolean;
     coldChainCapability?: boolean;
+    fssaiNumber?: string;
+    fssaiCertificateUrl?: string;
+    fssaiCertificateName?: string;
   }) => {
     for (let attempt = 0; attempt < 6; attempt++) {
       try {
@@ -99,6 +161,26 @@ function AuthInner() {
     }
   };
 
+  const uploadCertificate = async (file: File) => {
+    setCertUploading(true);
+    try {
+      const convexUrl = (import.meta as any).env?.VITE_CONVEX_URL ?? "";
+      const site = convexUrl.replace(".cloud", ".site");
+      const fd = new FormData();
+      fd.append("photo", file);
+      fd.append("kind", "certificate");
+      const res = await fetch(`${site}/api/upload`, { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Upload failed");
+      setFssaiCert({ url: data.url, name: file.name });
+      toast.success("Certificate uploaded", { description: file.name });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Certificate upload failed");
+    } finally {
+      setCertUploading(false);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -118,6 +200,22 @@ function AuthInner() {
       setIsLoading(false);
       return;
     }
+
+    // FSSAI validation: required for suppliers, validated whenever entered
+    if (role === "supplier" && !fssaiNumber.trim()) {
+      setError("FSSAI License / Registration Number is required for suppliers.");
+      setIsLoading(false);
+      return;
+    }
+    if (fssaiNumber.trim()) {
+      const v = validateFssaiClient(fssaiNumber);
+      if (!v.ok && v.error) {
+        setError(v.error);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
       await signIn("password", { flow: "signUp", email, password });
       await ensureProfile({
@@ -126,14 +224,28 @@ function AuthInner() {
         role,
         phone,
         location,
+        category: orgCategory || undefined,
         storageCapability: storage,
         coldChainCapability: cold,
+        fssaiNumber: fssaiNumber.trim() || undefined,
+        fssaiCertificateUrl: fssaiCert?.url,
+        fssaiCertificateName: fssaiCert?.name,
       });
-      toast.success("Welcome to FreshLink AI", { description: "Your organization is ready." });
+      toast.success("Welcome to FreshLink AI", {
+        description: fssaiNumber.trim()
+          ? "Your organization is ready. FSSAI verification is pending admin review."
+          : "Your organization is ready.",
+      });
       navigate(redirect);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Registration failed.";
-      setError(msg.includes("already exists") ? "An account with this email already exists. Try signing in." : msg);
+      setError(
+        msg.includes("already exists") && msg.includes("FSSAI")
+          ? "An organization with this FSSAI License / Registration Number already exists. Please verify the information or contact support."
+          : msg.includes("already exists")
+            ? "An account with this email already exists. Try signing in."
+            : msg,
+      );
       setIsLoading(false);
     }
   };
@@ -177,6 +289,7 @@ function AuthInner() {
               { icon: Store, text: "Suppliers list surplus with real photos" },
               { icon: HeartHandshake, text: "Recipients apply for what they can use" },
               { icon: ArrowRight, text: "AI proposes the split — you approve it" },
+              { icon: ShieldCheck, text: "FSSAI compliance reviewed by the FreshLink team" },
             ].map((r) => (
               <p key={r.text} className="flex items-center gap-3 text-sm text-white/80">
                 <span className="flex size-8 items-center justify-center rounded-lg bg-white/10">
@@ -296,6 +409,21 @@ function AuthInner() {
                       <Input id="orgName" name="orgName" placeholder="Community Kitchen" required />
                     </div>
                   </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Organization type</Label>
+                    <Select value={orgCategory} onValueChange={setOrgCategory}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={role === "supplier" ? "Supermarket" : "NGO / Community Food Organization"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {typeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-1.5">
                     <Label htmlFor="reg-email">Email</Label>
                     <Input id="reg-email" name="email" type="email" placeholder="you@organization.org" required autoComplete="email" />
@@ -315,24 +443,125 @@ function AuthInner() {
                     <Input id="reg-password" name="password" type="password" placeholder="At least 8 characters" required minLength={8} autoComplete="new-password" />
                   </div>
 
-                  {role === "recipient" && (
-                    <div className="space-y-2 rounded-lg border bg-secondary/50 p-3">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Capabilities (used by AI matching)</p>
-                      <label className="flex items-center justify-between text-sm">
-                        Dry / ambient storage
-                        <Switch name="storage" defaultChecked />
-                      </label>
-                      <label className="flex items-center justify-between text-sm">
-                        Cold chain (refrigerated transport)
-                        <Switch name="cold" />
-                      </label>
+                  <div className="space-y-2 rounded-lg border bg-secondary/50 p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Capabilities (used by AI matching)</p>
+                    <label className="flex items-center justify-between text-sm">
+                      Dry / ambient storage
+                      <Switch name="storage" defaultChecked />
+                    </label>
+                    <label className="flex items-center justify-between text-sm">
+                      Cold chain (refrigerated transport)
+                      <Switch name="cold" />
+                    </label>
+                  </div>
+
+                  {/* ---- FSSAI compliance section ---- */}
+                  {fssaiApplicable && (
+                    <div className={`space-y-3 rounded-xl border p-4 ${role === "supplier" ? "border-forest/30 bg-leaf/5" : "border-border bg-secondary/50"}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="size-4.5 text-forest" />
+                          <p className="text-sm font-bold">FSSAI License / Registration</p>
+                        </div>
+                        {role === "supplier" ? (
+                          <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-bold text-forest">REQUIRED</span>
+                        ) : (
+                          <span className="rounded-full bg-harvest/15 px-2 py-0.5 text-[10px] font-bold text-[#8a6414]">IF APPLICABLE</span>
+                        )}
+                      </div>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {role === "supplier"
+                          ? "Your FSSAI License / Registration Number is required to list surplus food. It is reviewed by the FreshLink compliance team before your organization earns a verified badge."
+                          : "If your organization handles, prepares, stores or distributes food as an applicable food business, provide your FSSAI License / Registration Number for FreshLink compliance review."}
+                      </p>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="fssai-number">FSSAI License / Registration Number</Label>
+                        <Input
+                          id="fssai-number"
+                          inputMode="numeric"
+                          placeholder="14-digit number"
+                          maxLength={14}
+                          value={fssaiNumber}
+                          onChange={(e) => setFssaiNumber(e.target.value.replace(/[^\d]/g, "").slice(0, 14))}
+                          className="font-mono tracking-widest"
+                          autoComplete="off"
+                        />
+                        {fssaiNumber.length > 0 && (
+                          <div className="flex items-center gap-2 text-xs">
+                            {fssaiCheck.ok ? (
+                              <>
+                                <BadgeCheck className="size-3.5 text-forest" />
+                                <span className="font-medium text-forest">
+                                  Detected type: FSSAI {fssaiCheck.type === "LICENSE" ? "License" : "Registration"}
+                                </span>
+                              </>
+                            ) : fssaiCheck.error ? (
+                              <>
+                                <Clock className="size-3.5 text-coral" />
+                                <span className="text-coral">{fssaiCheck.error}</span>
+                              </>
+                            ) : null}
+                            <span className="ml-auto text-[10.5px] text-muted-foreground">{fssaiNumber.length}/14 digits</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>FSSAI certificate / document</Label>
+                        {fssaiCert ? (
+                          <div className="flex items-center gap-2 rounded-lg border bg-card p-2.5 text-sm">
+                            <FileCheck2 className="size-4 shrink-0 text-forest" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13px] font-medium">✓ Certificate Uploaded</p>
+                              <p className="truncate text-[11px] text-muted-foreground">
+                                {fssaiCert.name} · uploaded {new Date().toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-leaf hover:underline"
+                              onClick={() => setFssaiCert(null)}
+                            >
+                              Replace
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-leaf/40 bg-card px-3 py-3 text-sm font-medium text-leaf transition-colors hover:bg-leaf/5">
+                            {certUploading ? <Loader2 className="size-4 animate-spin" /> : <FileUp className="size-4" />}
+                            {certUploading ? "Uploading…" : "Upload FSSAI Certificate"}
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,image/*"
+                              disabled={certUploading}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) uploadCertificate(f);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                        )}
+                        <p className="text-[10.5px] text-muted-foreground">PDF or image · max 6 MB · visible only to you and FreshLink administrators.</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-lg bg-background/70 p-2.5">
+                        <Clock className="size-4 shrink-0 text-harvest" />
+                        <div>
+                          <p className="text-xs font-semibold">Status</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {fssaiNumber.trim() ? "◷ Verification Pending — reviewed after registration by the FreshLink team" : "Submit your number to start compliance verification"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {error && <p className="text-sm text-destructive">{error}</p>}
                   <Button type="submit" className="w-full bg-forest hover:bg-forest/90" disabled={isLoading}>
                     {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                    Create account
+                    {role === "supplier" ? "Create supplier account" : "Create recipient account"}
                   </Button>
                 </form>
 

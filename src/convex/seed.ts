@@ -41,8 +41,13 @@ interface OrgSeed {
   userName: string;
   userEmail: string;
   phone: string;
+  // FSSAI demo compliance data (fictional — labeled DEMO DATA in the UI)
+  fssai?: {
+    number: string; // 14 digits, starts 1=License / 2=Registration
+    status: "PENDING" | "VERIFIED" | "REQUIRES_REVIEW";
+    verifiedDaysAgo?: number;
+  };
 }
-
 const ORGS: OrgSeed[] = [
   {
     key: "greenleaf",
@@ -59,6 +64,7 @@ const ORGS: OrgSeed[] = [
     userName: "Dana Whitfield",
     userEmail: "supplier@freshlink.app",
     phone: "+44 121 555 0101",
+    fssai: { number: "10024051674821", status: "VERIFIED", verifiedDaysAgo: 12 },
   },
   {
     key: "grandpalace",
@@ -75,6 +81,7 @@ const ORGS: OrgSeed[] = [
     userName: "Marcus Osei",
     userEmail: "hotel@freshlink.app",
     phone: "+44 121 555 0102",
+    fssai: { number: "10031022449017", status: "VERIFIED", verifiedDaysAgo: 34 },
   },
   {
     key: "harvestbakery",
@@ -91,6 +98,7 @@ const ORGS: OrgSeed[] = [
     userName: "Priya Raman",
     userEmail: "bakery@freshlink.app",
     phone: "+44 121 555 0103",
+    fssai: { number: "20045033961248", status: "PENDING" },
   },
   {
     key: "helpinghands",
@@ -107,6 +115,7 @@ const ORGS: OrgSeed[] = [
     userName: "Amara Diallo",
     userEmail: "ngo@freshlink.app",
     phone: "+44 121 555 0201",
+    fssai: { number: "20045077123482", status: "VERIFIED", verifiedDaysAgo: 21 },
   },
   {
     key: "juicecorner",
@@ -123,6 +132,7 @@ const ORGS: OrgSeed[] = [
     userName: "Tom Ince",
     userEmail: "juice@freshlink.app",
     phone: "+44 121 555 0202",
+    fssai: { number: "20045099061433", status: "PENDING" },
   },
   {
     key: "communitykitchen",
@@ -139,6 +149,7 @@ const ORGS: OrgSeed[] = [
     userName: "Sofia Marchetti",
     userEmail: "recipient@freshlink.app",
     phone: "+44 121 555 0203",
+    fssai: { number: "10011044678902", status: "VERIFIED", verifiedDaysAgo: 45 },
   },
   {
     key: "foodprocessor",
@@ -155,6 +166,7 @@ const ORGS: OrgSeed[] = [
     userName: "Ravi Patel",
     userEmail: "processor@freshlink.app",
     phone: "+44 121 555 0204",
+    fssai: { number: "10011055129877", status: "REQUIRES_REVIEW" },
   },
   {
     key: "greenbite",
@@ -171,6 +183,7 @@ const ORGS: OrgSeed[] = [
     userName: "Elena Novak",
     userEmail: "greenbite@freshlink.app",
     phone: "+44 121 555 0205",
+    fssai: { number: "10011066304159", status: "VERIFIED", verifiedDaysAgo: 8 },
   },
 ];
 
@@ -396,6 +409,31 @@ export const run = mutation({
   },
 });
 
+/**
+ * Idempotent backfill: gives demo organizations their fictional FSSAI compliance
+ * data on deployments that were seeded before the FSSAI feature existed.
+ */
+export const backfillFssai = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+    for (const o of ORGS) {
+      if (!o.fssai) continue;
+      const org = await ctx.db.query("organizations").withIndex("by_name", (q: any) => q.eq("name", o.name)).first();
+      if (!org || org.fssaiNumber) continue; // already has compliance data
+      await ctx.db.patch(org._id, {
+        fssaiNumber: o.fssai.number,
+        fssaiType: o.fssai.number.startsWith("1") ? ("LICENSE" as const) : ("REGISTRATION" as const),
+        fssaiVerificationStatus: o.fssai.status,
+        fssaiVerifiedAt: o.fssai.status === "VERIFIED" ? now - (o.fssai.verifiedDaysAgo ?? 0) * DAY : undefined,
+        fssaiSubmittedAt: now - 60 * DAY,
+      });
+    }
+    return { ok: true };
+  },
+});
+
 export const seedInternal = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -425,6 +463,12 @@ export const seedInternal = internalMutation({
         storageCapability: o.storageCapability,
         coldChainCapability: o.coldChainCapability,
         pickupCapability: o.pickupCapability,
+        // Fictional demo FSSAI data — displayed with a DEMO DATA label in the UI
+        fssaiNumber: o.fssai?.number,
+        fssaiType: o.fssai ? (o.fssai.number.startsWith("1") ? "LICENSE" : "REGISTRATION") : undefined,
+        fssaiVerificationStatus: o.fssai?.status,
+        fssaiVerifiedAt: o.fssai?.status === "VERIFIED" ? now - (o.fssai.verifiedDaysAgo ?? 0) * DAY : undefined,
+        fssaiSubmittedAt: o.fssai ? now - 60 * DAY : undefined,
         createdAt: now,
       });
       orgIds[o.key] = orgId;
