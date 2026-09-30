@@ -16,13 +16,16 @@ import {
   Snowflake,
   Thermometer,
   Navigation,
-  Handshake,
   X,
   ClipboardCheck,
   CalendarClock,
   ArrowLeft,
   Check,
   PackageOpen,
+  KeyRound,
+  Copy,
+  ShieldCheck,
+  RotateCw,
 } from "lucide-react";
 
 const TIMELINE = ["Application Approved", "Allocation Confirmed", "Pickup Scheduled", "Ready for Pickup", "Picked Up", "Delivered", "Completed"];
@@ -37,6 +40,160 @@ function timelineIndex(status: string): number {
     case "cancelled": return -1;
     default: return 0;
   }
+}
+
+/** Supplier marks the food ready → recipient issues a 6-digit code → supplier enters it to hand over. */
+function HandoverOtpCard({ p }: { p: any }) {
+  const generateOtp = useMutation(api.pickups.generateOtp);
+  const verifyHandover = useMutation(api.pickups.verifyHandover);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (["completed", "cancelled"].includes(p.status)) {
+    return p.otpVerifiedAt ? (
+      <Card className="border-forest/30 bg-leaf/5">
+        <CardContent className="flex items-center gap-2.5 p-4 text-sm">
+          <ShieldCheck className="size-4 text-forest" />
+          <span>
+            Handover code verified{" "}
+            <span className="text-muted-foreground">· {fmtDateTime(p.otpVerifiedAt)}</span>
+          </span>
+        </CardContent>
+      </Card>
+    ) : null;
+  }
+
+  const recipientSide = p.viewerRole === "recipient";
+  const supplierSide = p.viewerRole === "supplier" || p.viewerRole === "admin";
+  const open = ["ready", "on_the_way"].includes(p.status);
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await fn();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="border-harvest/40 bg-harvest/5">
+      <CardContent className="space-y-3 p-5">
+        <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <KeyRound className="size-3.5" /> Handover security
+        </p>
+
+        {!open && recipientSide && (
+          <p className="text-sm text-muted-foreground">
+            Once <span className="font-semibold text-charcoal">{p.supplierOrg.name}</span> marks the food ready, you can
+            generate a one-time code and share it with their staff at collection.
+          </p>
+        )}
+
+        {!open && supplierSide && (
+          <p className="text-sm text-muted-foreground">
+            Mark the food as <span className="font-semibold text-charcoal">Ready</span> first. The recipient then shares a
+            6-digit code which you enter here to confirm the handoff.
+          </p>
+        )}
+
+        {open && recipientSide && (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Share this code with the {p.supplierOrg.name} staff at collection. They enter it to confirm the handoff.
+            </p>
+            {p.handoverOtp ? (
+              <>
+                <div className="flex items-center justify-center gap-1.5 rounded-xl border bg-card py-4">
+                  {p.handoverOtp.split("").map((d: string, i: number) => (
+                    <span key={i} className="flex size-9 items-center justify-center rounded-lg bg-ivory font-display text-xl font-bold text-forest">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await navigator.clipboard.writeText(p.handoverOtp);
+                        toast.success("Code copied — send it to the supplier");
+                      })
+                    }
+                  >
+                    <Copy className="mr-1.5 size-3.5" /> Copy code
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(async () => { await generateOtp({ id: p._id }); toast.success("New code generated"); })}>
+                    <RotateCw className="mr-1.5 size-3.5" /> Regenerate
+                  </Button>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Valid for 4 hours. The supplier must enter it before handing over the food.
+                </p>
+              </>
+            ) : (
+              <Button
+                className="w-full bg-forest hover:bg-forest/90"
+                disabled={busy}
+                onClick={() => run(async () => { await generateOtp({ id: p._id }); toast.success("Handover code generated — share it with the supplier"); })}
+              >
+                <KeyRound className="mr-2 size-4" /> Generate handover code
+              </Button>
+            )}
+          </>
+        )}
+
+        {open && supplierSide && (
+          <>
+            {p.otpIssued ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Ask {p.recipientOrg.name} for their 6-digit code and enter it below.
+                </p>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="• • • • • •"
+                  className="h-14 w-full rounded-xl border bg-card text-center font-display text-2xl font-bold tracking-[0.5em] text-forest placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-leaf/50"
+                />
+                <Button
+                  className="w-full bg-coral hover:bg-coral/90"
+                  disabled={busy || code.length !== 6}
+                  onClick={() =>
+                    run(async () => {
+                      await verifyHandover({ id: p._id, otp: code });
+                      setCode("");
+                      toast.success("Handover verified — recipient asked to confirm receipt");
+                    })
+                  }
+                >
+                  <ShieldCheck className="mr-2 size-4" /> Verify code &amp; confirm handover
+                </Button>
+                {p.otpAttempts > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {p.otpAttempts} incorrect attempt{p.otpAttempts === 1 ? "" : "s"} — 5 attempts allowed before a new code is
+                    required.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Waiting for <span className="font-semibold text-charcoal">{p.recipientOrg.name}</span> to generate a
+                handover code. It appears here as soon as they do.
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function Pickups() {
@@ -63,7 +220,8 @@ export default function Pickups() {
                   <Truck className="size-8 text-leaf/50" />
                   <p className="font-medium">No active pickups</p>
                   <p className="max-w-sm text-sm text-muted-foreground">
-                    When an allocation is approved, a pickup record is created automatically for both sides.
+                    When an allocation is approved, a pickup record is created automatically for both sides. As the
+                    collecting organization you will then be able to issue a handover code for the supplier to confirm.
                   </p>
                   <Button className="mt-2 bg-forest" asChild>
                     <Link to="/surplus">Browse surplus</Link>
@@ -161,9 +319,9 @@ function PickupCard({ pickup: p }: { pickup: any }) {
                     <PackageOpen className="mr-1.5 size-3.5" /> Mark Ready
                   </Button>
                 )}
-                {["scheduled", "ready", "on_the_way"].includes(p.status) && (
-                  <Button size="sm" className="bg-coral hover:bg-coral/90" disabled={busy} onClick={() => act("picked_up", "Handed over — waiting for recipient confirmation")}>
-                    <Handshake className="mr-1.5 size-3.5" /> Mark Handed Over
+                {["ready", "on_the_way"].includes(p.status) && (
+                  <Button size="sm" className="bg-coral hover:bg-coral/90" onClick={() => navigate(`/pickups/${p._id}`)}>
+                    <ShieldCheck className="mr-1.5 size-3.5" /> {p.otpIssued ? "Enter handover code" : "Awaiting code"}
                   </Button>
                 )}
               </>
@@ -172,6 +330,11 @@ function PickupCard({ pickup: p }: { pickup: any }) {
                 {["scheduled", "ready"].includes(p.status) && (
                   <Button size="sm" variant="outline" disabled={busy} onClick={() => act("on_the_way", "Supplier notified that you're on the way")}>
                     <Navigation className="mr-1.5 size-3.5" /> On the way
+                  </Button>
+                )}
+                {["ready", "on_the_way"].includes(p.status) && (
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/pickups/${p._id}`)}>
+                    <KeyRound className="mr-1.5 size-3.5" /> {p.handoverOtp ? "Show handover code" : "Generate code"}
                   </Button>
                 )}
                 {p.status === "picked_up" && (
@@ -355,6 +518,8 @@ export function PickupDetail() {
             </CardContent>
           </Card>
 
+          <HandoverOtpCard p={p} />
+
           {/* Actions */}
           {p.status !== "completed" && p.status !== "cancelled" && (
             <Card>
@@ -362,13 +527,13 @@ export function PickupDetail() {
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Actions</p>
                 {supplierSide && ["scheduled"].includes(p.status) && (
                   <Button className="w-full bg-forest hover:bg-forest/90" disabled={busy} onClick={() => act("ready", "Marked ready for pickup")}>
-                    <PackageOpen className="mr-2 size-4" /> Mark as Ready
+                    <PackageOpen className="mr-2 size-4" /> Mark as Ready for Collection
                   </Button>
                 )}
-                {supplierSide && ["scheduled", "ready", "on_the_way"].includes(p.status) && (
-                  <Button className="w-full bg-coral hover:bg-coral/90" disabled={busy} onClick={() => act("picked_up", "Handed over — awaiting recipient confirmation")}>
-                    <Handshake className="mr-2 size-4" /> Mark as Handed Over
-                  </Button>
+                {supplierSide && ["ready", "on_the_way"].includes(p.status) && (
+                  <p className="rounded-lg bg-secondary/60 p-2.5 text-[11px] leading-relaxed text-muted-foreground">
+                    To hand over, use the code the recipient shared in <span className="font-semibold text-charcoal">Handover security</span> above.
+                  </p>
                 )}
                 {!supplierSide && !isAdmin && ["scheduled", "ready"].includes(p.status) && (
                   <Button variant="outline" className="w-full" disabled={busy} onClick={() => act("on_the_way", "Supplier notified")}>
@@ -393,8 +558,8 @@ export function PickupDetail() {
                   Cancel pickup
                 </Button>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Completion requires the supplier to hand over and the recipient to confirm receipt. Only then is
-                  impact analytics and Trust &amp; History updated.
+                  Completion requires the supplier to hand over with the recipient&rsquo;s one-time code, and the
+                  recipient to confirm receipt. Only then are impact analytics and Trust &amp; History updated.
                 </p>
               </CardContent>
             </Card>
@@ -416,6 +581,11 @@ export function PickupDetail() {
                 </div>
                 {/* Proof of handover: compliance status of both organizations (no full numbers) */}
                 <div className="rounded-lg border bg-card p-3 text-xs">
+                  {p.otpVerifiedAt && (
+                    <p className="mb-2 flex items-center gap-1.5 font-semibold text-forest">
+                      <ShieldCheck className="size-3.5" /> Handover code verified · {fmtDateTime(p.otpVerifiedAt)}
+                    </p>
+                  )}
                   <p className="mb-1.5 font-bold uppercase tracking-wide text-muted-foreground">Proof of handover · compliance</p>
                   <p className="flex flex-wrap items-center gap-2">
                     Supplier: <span className="font-semibold">{p.supplierOrg.name}</span>

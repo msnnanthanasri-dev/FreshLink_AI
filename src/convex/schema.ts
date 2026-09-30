@@ -258,8 +258,14 @@ const schema = defineSchema(
       supplierContact: v.optional(v.string()),
       recipientContact: v.optional(v.string()),
       specialInstructions: v.optional(v.string()),
+      readyAt: v.optional(v.number()),
       handedOverAt: v.optional(v.number()),
       confirmedAt: v.optional(v.number()),
+      /** 6-digit one-time code issued by the recipient, verified by the supplier at handover. */
+      handoverOtp: v.optional(v.string()),
+      otpCreatedAt: v.optional(v.number()),
+      otpVerifiedAt: v.optional(v.number()),
+      otpAttempts: v.optional(v.number()),
       createdAt: v.number(),
       updatedAt: v.number(),
     })

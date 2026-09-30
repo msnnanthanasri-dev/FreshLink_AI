@@ -52,6 +52,44 @@ export default function GisMap() {
   const [showPickups, setShowPickups] = useState(true);
   const [urgentOnly, setUrgentOnly] = useState(false);
 
+  // All hooks must run before any early return so hook order stays stable.
+  const pickups = useMemo(
+    () =>
+      (data?.pickups ?? []).filter((p) => {
+        const isUrgent = p.scheduledDate <= new Date().toISOString().slice(0, 10);
+        return !urgentOnly || isUrgent;
+      }),
+    [data, urgentOnly],
+  );
+
+  const routes = useMemo(
+    () =>
+      pickups.map((p) => ({
+        id: p._id,
+        positions: [
+          [p.supplier.lat, p.supplier.lng],
+          [p.recipient.lat, p.recipient.lng],
+        ] as [number, number][],
+        label: `${p.supplier.name} → ${p.recipient.name}`,
+        quantity: `${fmtQty(p.quantity, p.unit)}`,
+        when: `${dateKeyToLabel(p.scheduledDate)} · ${time24to12(p.scheduledTime)}`,
+        status: p.status,
+      })),
+    [pickups],
+  );
+
+  const focused = focusId ? routes.find((r) => r.id === focusId) ?? null : null;
+
+  const allPoints: [number, number][] = useMemo(() => {
+    const pts: [number, number][] = [];
+    if (!data) return pts;
+    if (showSuppliers) data.orgs.filter((o) => o.type === "supplier").forEach((o) => pts.push([o.lat, o.lng]));
+    if (showRecipients) data.orgs.filter((o) => o.type === "recipient").forEach((o) => pts.push([o.lat, o.lng]));
+    if (showFood) data.listings.forEach((l) => pts.push([l.lat, l.lng]));
+    focused?.positions.forEach((p) => pts.push(p));
+    return pts;
+  }, [data, showSuppliers, showRecipients, showFood, focused]);
+
   if (data === undefined) {
     return (
       <AppLayout title="GIS Map">
@@ -59,34 +97,6 @@ export default function GisMap() {
       </AppLayout>
     );
   }
-
-  const pickups = data.pickups.filter((p) => {
-    const isUrgent = p.scheduledDate <= new Date().toISOString().slice(0, 10);
-    return !urgentOnly || isUrgent;
-  });
-
-  const routes = pickups.map((p) => ({
-    id: p._id,
-    positions: [
-      [p.supplier.lat, p.supplier.lng],
-      [p.recipient.lat, p.recipient.lng],
-    ] as [number, number][],
-    label: `${p.supplier.name} → ${p.recipient.name}`,
-    quantity: `${fmtQty(p.quantity, p.unit)}`,
-    when: `${dateKeyToLabel(p.scheduledDate)} · ${time24to12(p.scheduledTime)}`,
-    status: p.status,
-  }));
-
-  const focused = focusId ? routes.find((r) => r.id === focusId) : null;
-
-  const allPoints: [number, number][] = useMemo(() => {
-    const pts: [number, number][] = [];
-    if (showSuppliers) data.orgs.filter((o) => o.type === "supplier").forEach((o) => pts.push([o.lat, o.lng]));
-    if (showRecipients) data.orgs.filter((o) => o.type === "recipient").forEach((o) => pts.push([o.lat, o.lng]));
-    if (showFood) data.listings.forEach((l) => pts.push([l.lat, l.lng]));
-    focused?.positions.forEach((p) => pts.push(p));
-    return pts;
-  }, [data, showSuppliers, showRecipients, showFood, focused]);
 
   const filterBtn = (label: string, active: boolean, toggle: () => void, dot: string) => (
     <button
